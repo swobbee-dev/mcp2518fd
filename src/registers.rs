@@ -4,6 +4,10 @@ pub trait Register: From<u32> + Into<u32> {
     const ADDRESS: u16;
 }
 
+pub trait Register8: From<u8> + Into<u8> {
+    const ADDRESS: u16;
+}
+
 // -----------------------------------------------------------------------------
 // CiCON – CAN Control Register
 
@@ -569,25 +573,49 @@ impl Register for Osc {
 }
 
 // -----------------------------------------------------------------------------
-// IOCON – I/O Control Register
+// IOCON – I/O Control Register - **must be written using single data byte SFR WRITE instructions**
 
-#[bitfield(bits = 32)]
-#[repr(u32)]
-pub struct Iocon {
+#[bitfield(bits = 8)]
+#[repr(u8)]
+pub struct Iocon0 {
     pub tris0: bool,                       // bit 0
     pub tris1: bool,                       // bit 1
-    #[skip] __: B2,                        // bits 2..3 (unimplemented)
-    pub clear_auto_sleep_on_match: bool,   // bit 4
-    pub auto_sleep_enable: bool,           // bit 5
+    #[skip] __: B4,                        // bits 2..5 (unimplemented)
     pub xcr_stby_enable: bool,             // bit 6
     #[skip] __: B1,                        // bit 7
+}
+
+impl Register8 for Iocon0 {
+    const ADDRESS: u16 = 0x0E04;
+}
+
+#[bitfield(bits = 8)]
+#[repr(u8)]
+pub struct Iocon1 {
     pub lat0: bool,                        // bit 8
     pub lat1: bool,                        // bit 9
-    #[skip] __: B5,                        // bits 10..14 (unimplemented)
-    pub hvdetsel: bool,                    // bit 15
+    #[skip] __: B6,                        // bits 10..15 (unimplemented)
+}
+
+impl Register8 for Iocon1 {
+    const ADDRESS: u16 = Iocon0::ADDRESS + 1;
+}
+
+#[bitfield(bits = 8)]
+#[repr(u8)]
+pub struct Iocon2 {
     pub gpio0: bool,                       // bit 16
     pub gpio1: bool,                       // bit 17
     #[skip] __: B6,                        // bits 18..23
+}
+
+impl Register8 for Iocon2 {
+    const ADDRESS: u16 = Iocon0::ADDRESS + 2;
+}
+
+#[bitfield(bits = 8)]
+#[repr(u8)]
+pub struct Iocon3 {
     pub pin_mode0: bool,                   // bit 24
     pub pin_mode1: bool,                   // bit 25
     #[skip] __: B2,                        // bits 26..27
@@ -597,8 +625,8 @@ pub struct Iocon {
     #[skip] __: B1,                        // bit 31
 }
 
-impl Register for Iocon {
-    const ADDRESS: u16 = 0x0E04;
+impl Register8 for Iocon3 {
+    const ADDRESS: u16 = Iocon0::ADDRESS + 3;
 }
 
 // -----------------------------------------------------------------------------
