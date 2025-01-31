@@ -6,9 +6,9 @@ mod registers;
 
 use core::{cell::RefCell, marker::PhantomData};
 
+use embedded_can::asynch::{CanRx, CanTx};
 use embedded_hal::spi::{Operation, SpiDevice};
 use registers::{FromBytes, OperationMode, Register, ToBytes};
-use embedded_can::asynch::{CanRx, CanTx};
 
 #[derive(Debug)]
 pub enum MCPError<SpiErr> {
@@ -57,7 +57,6 @@ impl<SPI> SharedDriver<SPI> {
     }
 }
 
-
 /// Transmit-only handle
 pub struct McpTx<'a, SPI, F> {
     shared: &'a SharedDriver<SPI>,
@@ -77,6 +76,13 @@ impl<'a, SPI, F> McpTx<'a, SPI, F> {
             shared,
             _frame: PhantomData,
         }
+    }
+
+    pub fn is_message_available(&mut self) -> Result<bool, MCPError<SPI::Error>>
+    where
+        SPI: SpiDevice,
+    {
+        self.shared.with(|drv| drv.is_message_available())
     }
 }
 
@@ -98,7 +104,10 @@ where
     type Frame = FRAME;
     type Error = MCPError<ERR>;
 
-    async fn transmit(&mut self, frame: &<Self as CanTx>::Frame) -> Result<(), Self::Error> {
+    async fn transmit(
+        &mut self,
+        frame: &<Self as CanTx>::Frame,
+    ) -> Result<(), <Self as CanTx>::Error> {
         self.shared.with(|drv| drv.transmit(frame))
     }
 }
@@ -112,7 +121,7 @@ where
     type Frame = FRAME;
     type Error = MCPError<ERR>;
 
-    async fn receive(&mut self) -> Result<<Self as CanRx>::Frame, Self::Error> {
+    async fn receive(&mut self) -> Result<<Self as CanRx>::Frame, <Self as CanRx>::Error> {
         self.shared.with(|drv| drv.receive())
     }
 }
@@ -143,7 +152,6 @@ impl<SPI, FRAME> Mcp2518fd<SPI, FRAME> {
         (McpTx::new(&self.shared), McpRx::new(&self.shared))
     }
 }
-
 
 fn build_header(opcode: u8, addr: u16) -> [u8; 2] {
     let high = (opcode << 4) | ((addr >> 8) as u8 & 0x0F);
