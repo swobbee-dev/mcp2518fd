@@ -4,9 +4,6 @@
 
 mod registers;
 
-use core::{cell::RefCell, marker::PhantomData};
-
-use embedded_can::asynch::{CanRx, CanTx};
 use embedded_hal::spi::{Operation, SpiDevice};
 use registers::{FromBytes, OperationMode, Register, ToBytes};
 
@@ -18,13 +15,6 @@ pub enum MCPError<SpiErr> {
     ConfigurationErrror,
     /// Device is not configured.
     NotConfiguredError,
-}
-
-impl<BusErr: core::fmt::Debug> embedded_can::Error for MCPError<BusErr> {
-    fn kind(&self) -> embedded_can::ErrorKind {
-        use embedded_can::ErrorKind;
-        ErrorKind::Other
-    }
 }
 
 #[derive(Debug)]
@@ -45,126 +35,18 @@ impl Config {
     }
 }
 
-pub struct SharedDriver<SPI>(RefCell<Driver<SPI>>);
-
-impl<SPI> SharedDriver<SPI> {
-    pub fn new(driver: Driver<SPI>) -> Self {
-        Self(RefCell::new(driver))
-    }
-
-    fn with<R>(&self, f: impl FnOnce(&mut Driver<SPI>) -> R) -> R {
-        f(&mut self.0.borrow_mut())
-    }
-}
-
-/// Transmit-only handle
-pub struct McpTx<'a, SPI, F> {
-    shared: &'a SharedDriver<SPI>,
-    _frame: PhantomData<F>,
-}
-
-/// Receive-only handle
-pub struct McpRx<'a, SPI, F> {
-    shared: &'a SharedDriver<SPI>,
-    _frame: PhantomData<F>,
-}
-
-impl<'a, SPI, F> McpTx<'a, SPI, F> {
-    /// Constructor for internal use only
-    pub fn new(shared: &'a SharedDriver<SPI>) -> Self {
-        Self {
-            shared,
-            _frame: PhantomData,
-        }
-    }
-
-    pub fn is_message_available(&mut self) -> Result<bool, MCPError<SPI::Error>>
-    where
-        SPI: SpiDevice,
-    {
-        self.shared.with(|drv| drv.is_message_available())
-    }
-}
-
-impl<'a, SPI, FRAME> McpRx<'a, SPI, FRAME> {
-    pub fn new(shared: &'a SharedDriver<SPI>) -> Self {
-        Self {
-            shared,
-            _frame: PhantomData,
-        }
-    }
-}
-
-impl<'a, SPI, FRAME, ERR> CanTx for McpTx<'a, SPI, FRAME>
-where
-    FRAME: embedded_can::Frame,
-    SPI: SpiDevice<Error = ERR>,
-    ERR: core::fmt::Debug,
-{
-    type Frame = FRAME;
-    type Error = MCPError<ERR>;
-
-    async fn transmit(
-        &mut self,
-        frame: &<Self as CanTx>::Frame,
-    ) -> Result<(), <Self as CanTx>::Error> {
-        self.shared.with(|drv| drv.transmit(frame))
-    }
-}
-
-impl<'a, SPI, FRAME, ERR> CanRx for McpRx<'a, SPI, FRAME>
-where
-    FRAME: embedded_can::Frame,
-    SPI: SpiDevice<Error = ERR>,
-    ERR: core::fmt::Debug,
-{
-    type Frame = FRAME;
-    type Error = MCPError<ERR>;
-
-    async fn receive(&mut self) -> Result<<Self as CanRx>::Frame, <Self as CanRx>::Error> {
-        self.shared.with(|drv| drv.receive())
-    }
-}
-
-pub struct Mcp2518fd<SPI, FRAME> {
-    shared: SharedDriver<SPI>,
-    _frame: PhantomData<FRAME>,
-}
-
-impl<SPI, FRAME> Mcp2518fd<SPI, FRAME> {
-    pub fn new(spi: SPI) -> Self {
-        let driver = Driver::new(spi);
-        Self {
-            shared: SharedDriver::new(driver),
-            _frame: PhantomData,
-        }
-    }
-
-    pub fn configure(&mut self, config: &Config) -> Result<(), MCPError<SPI::Error>>
-    where
-        SPI: SpiDevice,
-    {
-        self.shared.with(|drv| drv.configure(config))
-    }
-
-    /// Split into separate TX/RX handles that implement the embedded-can "asynch" traits
-    pub fn split(&mut self) -> (McpTx<SPI, FRAME>, McpRx<SPI, FRAME>) {
-        (McpTx::new(&self.shared), McpRx::new(&self.shared))
-    }
-}
-
 fn build_header(opcode: u8, addr: u16) -> [u8; 2] {
     let high = (opcode << 4) | ((addr >> 8) as u8 & 0x0F);
     let low = addr as u8;
     [high, low]
 }
 
-pub struct Driver<SPI> {
+pub struct Mcp2518fd<SPI> {
     spi: SPI,
     configured: bool,
 }
 
-impl<SPI> Driver<SPI> {
+impl<SPI> Mcp2518fd<SPI> {
     pub fn new(spi: SPI) -> Self {
         Self {
             spi,
@@ -177,7 +59,7 @@ impl<SPI> Driver<SPI> {
     }
 }
 
-impl<SPI, BusErr> Driver<SPI>
+impl<SPI, BusErr> Mcp2518fd<SPI>
 where
     SPI: SpiDevice<Error = BusErr>,
 {
@@ -256,7 +138,7 @@ where
         Ok(())
     }
 
-    pub fn transmit(&mut self, msg: &impl embedded_can::Frame) -> Result<(), MCPError<BusErr>> {
+    pub fn send(&mut self, msg: &impl embedded_can::Frame) -> Result<(), MCPError<BusErr>> {
         let ram_addr = u32::from(self.read_register_with_index::<registers::CiFIFOUA>(1)?) as u16;
 
         let (t0, mut t1) = match msg.id() {
