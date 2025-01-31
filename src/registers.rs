@@ -1,18 +1,62 @@
 use modular_bitfield::prelude::*;
 
-/// A 32-bit register trait
-pub trait Register32: From<u32> + Into<u32> {
-    const ADDRESS: u16;
+pub trait Register: From<Self::V> + Into<Self::V> + Sized {
+    type V: FromBytes + ToBytes;
+
+    fn address(index: u16) -> u16;
 }
 
-/// An 8-bit register trait
-pub trait Register8: From<u8> + Into<u8> {
-    const ADDRESS: u16;
+pub trait FromBytes {
+    fn from_bytes(bytes: &[u8]) -> Self;
 }
 
-/// A 16-bit register trait
-pub trait Register16: From<u16> + Into<u16> {
-    const ADDRESS: u16;
+pub trait ToBytes {
+    type Bytes: AsRef<[u8]>;
+
+    fn to_bytes(&self) -> Self::Bytes;
+}
+
+impl FromBytes for u8 {
+    fn from_bytes(bytes: &[u8]) -> Self {
+        bytes[0]
+    }
+}
+
+impl ToBytes for u8 {
+    type Bytes = [u8; 1];
+    fn to_bytes(&self) -> Self::Bytes {
+        [*self]
+    }
+}
+
+impl FromBytes for u16 {
+    fn from_bytes(bytes: &[u8]) -> Self {
+        let mut array = [0u8; 2];
+        array.copy_from_slice(bytes);
+        u16::from_le_bytes(array)
+    }
+}
+
+impl ToBytes for u16 {
+    type Bytes = [u8; 2];
+    fn to_bytes(&self) -> Self::Bytes {
+        self.to_le_bytes()
+    }
+}
+
+impl FromBytes for u32 {
+    fn from_bytes(bytes: &[u8]) -> Self {
+        let mut array = [0u8; 4];
+        array.copy_from_slice(bytes);
+        u32::from_le_bytes(array)
+    }
+}
+
+impl ToBytes for u32 {
+    type Bytes = [u8; 4];
+    fn to_bytes(&self) -> Self::Bytes {
+        self.to_le_bytes()
+    }
 }
 
 // -----------------------------------------------------------------------------
@@ -30,9 +74,9 @@ pub enum OperationMode {
     Restricted = 7,
 }
 
-impl Into<u8> for OperationMode {
-    fn into(self) -> u8 {
-        self as u8
+impl From<OperationMode> for u8 {
+    fn from(val: OperationMode) -> Self {
+        val as u8
     }
 }
 
@@ -96,230 +140,126 @@ pub struct CiCon {
     pub con3: CiCon3,
 }
 
-impl Register32 for CiCon {
-    const ADDRESS: u16 = 0x0000;
+impl Register for CiCon {
+    type V = u32;
+    fn address(_index: u16) -> u16 {
+        0x0000
+    }
 }
 
-impl Register8 for CiCon0 {
-    const ADDRESS: u16 = CiCon::ADDRESS;
+impl Register for CiCon0 {
+    type V = u8;
+    fn address(_index: u16) -> u16 {
+        CiCon::address(_index)
+    }
 }
-impl Register8 for CiCon1 {
-    const ADDRESS: u16 = CiCon::ADDRESS + 1;
+impl Register for CiCon1 {
+    type V = u8;
+    fn address(_index: u16) -> u16 {
+        CiCon::address(_index) + 1
+    }
 }
-impl Register8 for CiCon2 {
-    const ADDRESS: u16 = CiCon::ADDRESS + 2;
+impl Register for CiCon2 {
+    type V = u8;
+    fn address(_index: u16) -> u16 {
+        CiCon::address(_index) + 2
+    }
 }
-impl Register8 for CiCon3 {
-    const ADDRESS: u16 = CiCon::ADDRESS + 3;
+impl Register for CiCon3 {
+    type V = u8;
+    fn address(_index: u16) -> u16 {
+        CiCon::address(_index) + 3
+    }
 }
 
 // -----------------------------------------------------------------------------
 // CiNBTCFG – Nominal Bit Time Configuration Register
 
-#[bitfield(bits = 8)]
-#[derive(BitfieldSpecifier)]
-#[repr(u8)]
-pub struct CiNbtcfg0 {
+#[bitfield(bits = 32)]
+#[derive(Clone, Copy)]
+#[repr(u32)]
+pub struct CiNbtcfg {
     #[bits = 7]
     pub sjw: B7,
     #[skip]
     __: B1,
-}
-
-#[bitfield(bits = 8)]
-#[derive(BitfieldSpecifier)]
-#[repr(u8)]
-pub struct CiNbtcfg1 {
     #[bits = 7]
     pub tseg2: B7,
     #[skip]
     __: B1,
-}
-
-#[bitfield(bits = 8)]
-#[derive(BitfieldSpecifier)]
-#[repr(u8)]
-pub struct CiNbtcfg2 {
     #[bits = 8]
     pub tseg1: u8,
-}
-
-#[bitfield(bits = 8)]
-#[derive(BitfieldSpecifier)]
-#[repr(u8)]
-pub struct CiNbtcfg3 {
     #[bits = 8]
     pub brp: u8,
 }
 
-#[bitfield(bits = 32)]
-#[repr(u32)]
-pub struct CiNbtcfg {
-    pub nbtcfg0: CiNbtcfg0,
-    pub nbtcfg1: CiNbtcfg1,
-    pub nbtcfg2: CiNbtcfg2,
-    pub nbtcfg3: CiNbtcfg3,
-}
-
-impl Register32 for CiNbtcfg {
-    const ADDRESS: u16 = 0x0004;
-}
-
-impl Register8 for CiNbtcfg0 {
-    const ADDRESS: u16 = CiNbtcfg::ADDRESS;
-}
-impl Register8 for CiNbtcfg1 {
-    const ADDRESS: u16 = CiNbtcfg::ADDRESS + 1;
-}
-impl Register8 for CiNbtcfg2 {
-    const ADDRESS: u16 = CiNbtcfg::ADDRESS + 2;
-}
-impl Register8 for CiNbtcfg3 {
-    const ADDRESS: u16 = CiNbtcfg::ADDRESS + 3;
+impl Register for CiNbtcfg {
+    type V = u32;
+    fn address(_index: u16) -> u16 {
+        0x0004
+    }
 }
 
 // -----------------------------------------------------------------------------
 // CiDBTCFG – Data Bit Time Configuration Register (32 bits)
 
-#[bitfield(bits = 8)]
-#[derive(BitfieldSpecifier)]
-#[repr(u8)]
-pub struct CiDbtcfg0 {
-    #[bits = 4]
-    pub sjw: B4,
+#[bitfield(bits = 32)]
+#[repr(u32)]
+pub struct CiDbtcfg {
+    #[bits = 7]
+    pub sjw: B7,
     #[skip]
-    __: B4,
-}
-
-#[bitfield(bits = 8)]
-#[derive(BitfieldSpecifier)]
-#[repr(u8)]
-pub struct CiDbtcfg1 {
-    #[bits = 4]
-    pub tseg2: B4,
+    __: B1,
+    #[bits = 7]
+    pub tseg2: B7,
     #[skip]
-    __: B4,
-}
-
-#[bitfield(bits = 8)]
-#[derive(BitfieldSpecifier)]
-#[repr(u8)]
-pub struct CiDbtcfg2 {
-    #[bits = 5]
-    pub tseg1: B5,
-    #[skip]
-    __: B3,
-}
-
-#[bitfield(bits = 8)]
-#[derive(BitfieldSpecifier)]
-#[repr(u8)]
-pub struct CiDbtcfg3 {
+    __: B1,
+    #[bits = 8]
+    pub tseg1: u8,
     #[bits = 8]
     pub brp: u8,
 }
 
-#[bitfield(bits = 32)]
-#[repr(u32)]
-pub struct CiDbtcfg {
-    pub dbtcfg0: CiDbtcfg0,
-    pub dbtcfg1: CiDbtcfg1,
-    pub dbtcfg2: CiDbtcfg2,
-    pub dbtcfg3: CiDbtcfg3,
-}
-
-impl Register32 for CiDbtcfg {
-    const ADDRESS: u16 = 0x0008;
-}
-
-impl Register8 for CiDbtcfg0 {
-    const ADDRESS: u16 = CiDbtcfg::ADDRESS;
-}
-impl Register8 for CiDbtcfg1 {
-    const ADDRESS: u16 = CiDbtcfg::ADDRESS + 1;
-}
-impl Register8 for CiDbtcfg2 {
-    const ADDRESS: u16 = CiDbtcfg::ADDRESS + 2;
-}
-impl Register8 for CiDbtcfg3 {
-    const ADDRESS: u16 = CiDbtcfg::ADDRESS + 3;
+impl Register for CiDbtcfg {
+    type V = u32;
+    fn address(_index: u16) -> u16 {
+        0x0008
+    }
 }
 
 // -----------------------------------------------------------------------------
 // CiTDC – Transmitter Delay Compensation Register (32 bits)
 
-#[bitfield(bits = 8)]
-#[derive(BitfieldSpecifier)]
-#[repr(u8)]
-pub struct CiTdc0 {
+#[bitfield(bits = 32)]
+#[repr(u32)]
+pub struct CiTdc {
     #[bits = 6]
     pub tdc_value: B6,
     #[skip]
     __: B2,
-}
-
-#[bitfield(bits = 8)]
-#[derive(BitfieldSpecifier)]
-#[repr(u8)]
-pub struct CiTdc1 {
     #[bits = 7]
     pub tdc_offset: B7,
     #[skip]
     __: B1,
-}
-
-#[bitfield(bits = 8)]
-#[derive(BitfieldSpecifier)]
-#[repr(u8)]
-pub struct CiTdc2 {
     #[bits = 2]
     pub tdc_mode: B2,
     #[skip]
     __: B6,
-}
-
-#[bitfield(bits = 8)]
-#[derive(BitfieldSpecifier)]
-#[repr(u8)]
-pub struct CiTdc3 {
     pub sid11_enable: bool,
     pub edge_filter_enable: bool,
     #[skip]
     __: B6,
 }
 
-#[bitfield(bits = 32)]
-#[repr(u32)]
-pub struct CiTdc {
-    pub tdc0: CiTdc0,
-    pub tdc1: CiTdc1,
-    pub tdc2: CiTdc2,
-    pub tdc3: CiTdc3,
-}
-
-impl Register32 for CiTdc {
-    const ADDRESS: u16 = 0x000C;
-}
-
-impl Register8 for CiTdc0 {
-    const ADDRESS: u16 = CiTdc::ADDRESS;
-}
-impl Register8 for CiTdc1 {
-    const ADDRESS: u16 = CiTdc::ADDRESS + 1;
-}
-impl Register8 for CiTdc2 {
-    const ADDRESS: u16 = CiTdc::ADDRESS + 2;
-}
-impl Register8 for CiTdc3 {
-    const ADDRESS: u16 = CiTdc::ADDRESS + 3;
+impl Register for CiTdc {
+    type V = u32;
+    fn address(_index: u16) -> u16 {
+        0x000C
+    }
 }
 
 // -----------------------------------------------------------------------------
 // CiTSCON – Time Stamp Configuration Register (32 bits)
-//
-// The tbc_prescaler is 10 bits, which crosses a single byte boundary.
-// So we can represent the first 16 bits as one 16-bit subfield,
-// and the second 16 bits as another 16-bit subfield.
 
 #[bitfield(bits = 16)]
 #[derive(BitfieldSpecifier)]
@@ -348,15 +288,24 @@ pub struct CiTscon {
     pub tscon1: CiTscon1,
 }
 
-impl Register32 for CiTscon {
-    const ADDRESS: u16 = 0x0014;
+impl Register for CiTscon {
+    type V = u32;
+    fn address(_index: u16) -> u16 {
+        0x0014
+    }
 }
 
-impl Register16 for CiTscon0 {
-    const ADDRESS: u16 = CiTscon::ADDRESS;
+impl Register for CiTscon0 {
+    type V = u16;
+    fn address(_index: u16) -> u16 {
+        CiTscon::address(_index)
+    }
 }
-impl Register16 for CiTscon1 {
-    const ADDRESS: u16 = CiTscon::ADDRESS + 2;
+impl Register for CiTscon1 {
+    type V = u16;
+    fn address(_index: u16) -> u16 {
+        CiTscon::address(_index) + 2
+    }
 }
 
 // -----------------------------------------------------------------------------
@@ -411,21 +360,36 @@ pub struct CiVec {
     pub vec3: CiVec3,
 }
 
-impl Register32 for CiVec {
-    const ADDRESS: u16 = 0x0018;
+impl Register for CiVec {
+    type V = u32;
+    fn address(_index: u16) -> u16 {
+        0x0018
+    }
 }
 
-impl Register8 for CiVec0 {
-    const ADDRESS: u16 = CiVec::ADDRESS;
+impl Register for CiVec0 {
+    type V = u8;
+    fn address(_index: u16) -> u16 {
+        CiVec::address(_index)
+    }
 }
-impl Register8 for CiVec1 {
-    const ADDRESS: u16 = CiVec::ADDRESS + 1;
+impl Register for CiVec1 {
+    type V = u8;
+    fn address(_index: u16) -> u16 {
+        CiVec::address(_index) + 1
+    }
 }
-impl Register8 for CiVec2 {
-    const ADDRESS: u16 = CiVec::ADDRESS + 2;
+impl Register for CiVec2 {
+    type V = u8;
+    fn address(_index: u16) -> u16 {
+        CiVec::address(_index) + 2
+    }
 }
-impl Register8 for CiVec3 {
-    const ADDRESS: u16 = CiVec::ADDRESS + 3;
+impl Register for CiVec3 {
+    type V = u8;
+    fn address(_index: u16) -> u16 {
+        CiVec::address(_index) + 3
+    }
 }
 
 // -----------------------------------------------------------------------------
@@ -488,23 +452,29 @@ pub struct CiInt {
     pub ienable: CanIntEnables,
 }
 
-impl Register32 for CiInt {
-    const ADDRESS: u16 = 0x001C;
+impl Register for CiInt {
+    type V = u32;
+    fn address(_index: u16) -> u16 {
+        0x001C
+    }
 }
 
-impl Register16 for CanIntFlags {
-    const ADDRESS: u16 = CiInt::ADDRESS;
+impl Register for CanIntFlags {
+    type V = u16;
+    fn address(_index: u16) -> u16 {
+        CiInt::address(_index)
+    }
 }
 
-impl Register16 for CanIntEnables {
-    const ADDRESS: u16 = CiInt::ADDRESS + 2;
+impl Register for CanIntEnables {
+    type V = u16;
+    fn address(_index: u16) -> u16 {
+        CiInt::address(_index) + 2
+    }
 }
 
 // -----------------------------------------------------------------------------
 // CiTREC – Transmit/Receive Error Count Register (32 bits)
-//   bits 0..7 => rx_error_count
-//   bits 8..15 => tx_error_count
-//   bits 16..31 => error state bits
 
 #[bitfield(bits = 16)]
 #[derive(BitfieldSpecifier)]
@@ -528,12 +498,18 @@ pub struct CiTrec {
     pub state: CiTrecState,
 }
 
-impl Register32 for CiTrec {
-    const ADDRESS: u16 = 0x0034;
+impl Register for CiTrec {
+    type V = u32;
+    fn address(_index: u16) -> u16 {
+        0x0034
+    }
 }
 
-impl Register16 for CiTrecState {
-    const ADDRESS: u16 = CiTrec::ADDRESS + 2;
+impl Register for CiTrecState {
+    type V = u16;
+    fn address(_index: u16) -> u16 {
+        CiTrec::address(_index) + 2
+    }
 }
 
 // -----------------------------------------------------------------------------
@@ -552,8 +528,11 @@ pub struct CiBdiag0 {
     pub d_tx_error_count: u8,
 }
 
-impl Register32 for CiBdiag0 {
-    const ADDRESS: u16 = 0x0038;
+impl Register for CiBdiag0 {
+    type V = u32;
+    fn address(_index: u16) -> u16 {
+        0x0038
+    }
 }
 
 // -----------------------------------------------------------------------------
@@ -585,8 +564,11 @@ pub struct CiBdiag1 {
     __: B1,
 }
 
-impl Register32 for CiBdiag1 {
-    const ADDRESS: u16 = 0x003C;
+impl Register for CiBdiag1 {
+    type V = u32;
+    fn address(_index: u16) -> u16 {
+        0x003C
+    }
 }
 
 // -----------------------------------------------------------------------------
@@ -646,28 +628,43 @@ pub struct CiTefcon {
     pub citefcon3: CiTefcon3,
 }
 
-impl Register32 for CiTefcon {
-    const ADDRESS: u16 = 0x0040;
+impl Register for CiTefcon {
+    type V = u32;
+    fn address(_index: u16) -> u16 {
+        0x0040
+    }
 }
 
-impl Register8 for CiTefcon0 {
-    const ADDRESS: u16 = CiTefcon::ADDRESS;
+impl Register for CiTefcon0 {
+    type V = u8;
+    fn address(_index: u16) -> u16 {
+        CiTefcon::address(_index)
+    }
 }
 
-impl Register8 for CiTefcon1 {
-    const ADDRESS: u16 = CiTefcon::ADDRESS + 1;
+impl Register for CiTefcon1 {
+    type V = u8;
+    fn address(_index: u16) -> u16 {
+        CiTefcon::address(_index) + 1
+    }
 }
 
-impl Register8 for CiTefcon2 {
-    const ADDRESS: u16 = CiTefcon::ADDRESS + 2;
+impl Register for CiTefcon2 {
+    type V = u8;
+    fn address(_index: u16) -> u16 {
+        CiTefcon::address(_index) + 2
+    }
 }
 
-impl Register8 for CiTefcon3 {
-    const ADDRESS: u16 = CiTefcon::ADDRESS + 3;
+impl Register for CiTefcon3 {
+    type V = u8;
+    fn address(_index: u16) -> u16 {
+        CiTefcon::address(_index) + 3
+    }
 }
 
 // -----------------------------------------------------------------------------
-// CiTEFSTA – Transmit Event FIFO Status Register (32 bits, mostly bits in first byte)
+// CiTEFSTA – Transmit Event FIFO Status Register (32 bits)
 
 #[bitfield(bits = 8)]
 #[derive(BitfieldSpecifier)]
@@ -689,12 +686,18 @@ pub struct CiTefsta {
     __: B24,
 }
 
-impl Register32 for CiTefsta {
-    const ADDRESS: u16 = 0x0044;
+impl Register for CiTefsta {
+    type V = u32;
+    fn address(_index: u16) -> u16 {
+        0x0044
+    }
 }
 
-impl Register8 for CiTefsta0 {
-    const ADDRESS: u16 = CiTefsta::ADDRESS;
+impl Register for CiTefsta0 {
+    type V = u8;
+    fn address(_index: u16) -> u16 {
+        CiTefsta::address(_index)
+    }
 }
 
 // -----------------------------------------------------------------------------
@@ -758,24 +761,39 @@ pub struct CiTxqcon {
     pub txqcon3: CiTxqcon3,
 }
 
-impl Register32 for CiTxqcon {
-    const ADDRESS: u16 = 0x0050;
+impl Register for CiTxqcon {
+    type V = u32;
+    fn address(_index: u16) -> u16 {
+        0x0050
+    }
 }
 
-impl Register8 for CiTxqcon0 {
-    const ADDRESS: u16 = CiTxqcon::ADDRESS;
+impl Register for CiTxqcon0 {
+    type V = u8;
+    fn address(_index: u16) -> u16 {
+        CiTxqcon::address(_index)
+    }
 }
 
-impl Register8 for CiTxqcon1 {
-    const ADDRESS: u16 = CiTxqcon::ADDRESS + 1;
+impl Register for CiTxqcon1 {
+    type V = u8;
+    fn address(_index: u16) -> u16 {
+        CiTxqcon::address(_index) + 1
+    }
 }
 
-impl Register8 for CiTxqcon2 {
-    const ADDRESS: u16 = CiTxqcon::ADDRESS + 2;
+impl Register for CiTxqcon2 {
+    type V = u8;
+    fn address(_index: u16) -> u16 {
+        CiTxqcon::address(_index) + 2
+    }
 }
 
-impl Register8 for CiTxqcon3 {
-    const ADDRESS: u16 = CiTxqcon::ADDRESS + 3;
+impl Register for CiTxqcon3 {
+    type V = u8;
+    fn address(_index: u16) -> u16 {
+        CiTxqcon::address(_index) + 3
+    }
 }
 
 // -----------------------------------------------------------------------------
@@ -816,15 +834,15 @@ pub struct CiTxqsta {
     __: B16,
 }
 
-impl Register32 for CiTxqsta {
-    const ADDRESS: u16 = 0x0054;
+impl Register for CiTxqsta {
+    type V = u32;
+    fn address(_index: u16) -> u16 {
+        0x0054
+    }
 }
 
 // -----------------------------------------------------------------------------
-// CiFIFOCON – FIFO Control Register
-// (Separate Rx vs Tx structs)
-
-// Rx version
+// CiFIFOCON – FIFO Control Register (Separate Rx vs Tx)
 
 #[bitfield(bits = 32)]
 #[repr(u32)]
@@ -838,7 +856,7 @@ pub struct CiFifoConRx {
     pub rx_time_stamp_enable: bool,
     #[skip]
     __: B1,
-    pub tx_enable: bool, // same bit used for "TxEnable" or "RTREnable" in TX version
+    pub tx_enable: bool,
     pub uinc: bool,
     #[skip]
     __: B1,
@@ -851,11 +869,12 @@ pub struct CiFifoConRx {
     pub payload_size: B3,
 }
 
-impl Register32 for CiFifoConRx {
-    const ADDRESS: u16 = 0x005C;
+impl Register for CiFifoConRx {
+    type V = u32;
+    fn address(index: u16) -> u16 {
+        0x005C + index * 12
+    }
 }
-
-// Tx version
 
 #[bitfield(bits = 32)]
 #[repr(u32)]
@@ -887,8 +906,11 @@ pub struct CiFifoConTx {
     pub payload_size: B3,
 }
 
-impl Register32 for CiFifoConTx {
-    const ADDRESS: u16 = CiFifoConRx::ADDRESS;
+impl Register for CiFifoConTx {
+    type V = u32;
+    fn address(index: u16) -> u16 {
+        CiFifoConRx::address(index)
+    }
 }
 
 // -----------------------------------------------------------------------------
@@ -925,11 +947,26 @@ pub struct CiFifoStaRx {
     __: B16,
 }
 
-impl Register32 for CiFifoStaRx {
-    const ADDRESS: u16 = 0x0060;
+impl Register for CiFifoStaRx {
+    type V = u32;
+    fn address(index: u16) -> u16 {
+        0x0060 + index * 12
+    }
 }
 
-// Tx version
+impl Register for CiFifoStaRx0 {
+    type V = u8;
+    fn address(index: u16) -> u16 {
+        CiFifoStaRx::address(index)
+    }
+}
+
+impl Register for CiFifoStaRx1 {
+    type V = u8;
+    fn address(index: u16) -> u16 {
+        CiFifoStaRx::address(index) + 1
+    }
+}
 
 #[bitfield(bits = 8)]
 #[derive(BitfieldSpecifier)]
@@ -965,17 +1002,50 @@ pub struct CiFifoStaTx {
     __: B16,
 }
 
-impl Register32 for CiFifoStaTx {
-    const ADDRESS: u16 = CiFifoStaRx::ADDRESS;
+impl Register for CiFifoStaTx {
+    type V = u32;
+    fn address(index: u16) -> u16 {
+        CiFifoStaRx::address(index)
+    }
+}
+
+impl Register for CiFifoStaTx0 {
+    type V = u8;
+    fn address(index: u16) -> u16 {
+        CiFifoStaTx::address(index)
+    }
+}
+
+impl Register for CiFifoStaTx1 {
+    type V = u8;
+    fn address(index: u16) -> u16 {
+        CiFifoStaTx::address(index) + 1
+    }
 }
 
 // -----------------------------------------------------------------------------
-// CiFLTCON – Filter Control Register (32 bits) => 4 bytes, each 8 bits
+// CiFFIFOUA – FIFO USER ADDRESS REGISTER (32 bits)
+
+#[bitfield(bits = 32)]
+#[repr(u32)]
+pub struct CiFIFOUA {
+    pub fifo_user_address: u32,
+}
+
+impl Register for CiFIFOUA {
+    type V = u32;
+    fn address(index: u16) -> u16 {
+        0x0064 + index * 12
+    }
+}
+
+// -----------------------------------------------------------------------------
+// CiFltcon – Filter Control Register (32 bits)
 
 #[bitfield(bits = 8)]
 #[derive(BitfieldSpecifier)]
 #[repr(u8)]
-pub struct CiFltcon8 {
+pub struct CiFltcon {
     #[bits = 5]
     pub buffer_pointer: B5,
     #[skip]
@@ -983,21 +1053,15 @@ pub struct CiFltcon8 {
     pub enable: bool,
 }
 
-#[bitfield(bits = 32)]
-#[repr(u32)]
-pub struct CiFltcon {
-    pub fltcon0: CiFltcon8,
-    pub fltcon1: CiFltcon8,
-    pub fltcon2: CiFltcon8,
-    pub fltcon3: CiFltcon8,
-}
-
-impl Register32 for CiFltcon {
-    const ADDRESS: u16 = 0x01D0;
+impl Register for CiFltcon {
+    type V = u8;
+    fn address(index: u16) -> u16 {
+        0x01D0 + index
+    }
 }
 
 // -----------------------------------------------------------------------------
-// CiFLTOBJ & CiMASK – just placeholders with 32 bits, no subfields
+// CiFLTOBJ & CiMASK – placeholders
 
 #[bitfield(bits = 32)]
 #[repr(u32)]
@@ -1006,8 +1070,11 @@ pub struct CiFltobj {
     pub raw: u32,
 }
 
-impl Register32 for CiFltobj {
-    const ADDRESS: u16 = 0x01F0;
+impl Register for CiFltobj {
+    type V = u32;
+    fn address(index: u16) -> u16 {
+        0x01F0 + 8 * index
+    }
 }
 
 #[bitfield(bits = 32)]
@@ -1017,17 +1084,19 @@ pub struct CiMask {
     pub raw: u32,
 }
 
-impl Register32 for CiMask {
-    const ADDRESS: u16 = 0x01F4;
+impl Register for CiMask {
+    type V = u32;
+    fn address(index: u16) -> u16 {
+        0x01F4 + 8 * index
+    }
 }
 
 // -----------------------------------------------------------------------------
 // OSC – Oscillator Control Register (MCP2518FD variant) – 32 bits
 
 #[bitfield(bits = 8)]
-#[derive(BitfieldSpecifier)]
 #[repr(u8)]
-pub struct Osc0 {
+pub struct OscConfig {
     pub pll_enable: bool,
     #[skip]
     __: B1,
@@ -1041,9 +1110,8 @@ pub struct Osc0 {
 }
 
 #[bitfield(bits = 8)]
-#[derive(BitfieldSpecifier)]
 #[repr(u8)]
-pub struct Osc1 {
+pub struct OscStatus {
     pub pll_ready: bool,
     #[skip]
     __: B1,
@@ -1055,21 +1123,22 @@ pub struct Osc1 {
     __: B3,
 }
 
-#[bitfield(bits = 32)]
-#[repr(u32)]
-pub struct Osc {
-    pub osc0: Osc0,
-    pub osc1: Osc1,
-    #[skip]
-    __: B16,
+impl Register for OscConfig {
+    type V = u8;
+    fn address(_index: u16) -> u16 {
+        0x0E00
+    }
 }
 
-impl Register32 for Osc {
-    const ADDRESS: u16 = 0x0E00;
+impl Register for OscStatus {
+    type V = u8;
+    fn address(_index: u16) -> u16 {
+        OscConfig::address(_index) + 1
+    }
 }
 
 // -----------------------------------------------------------------------------
-// IOCON – I/O Control Register - **must be written using single data byte SFR WRITE instructions**
+// IOCON – I/O Control Register
 
 #[bitfield(bits = 8)]
 #[repr(u8)]
@@ -1115,17 +1184,29 @@ pub struct Iocon3 {
     __: B1,
 }
 
-impl Register8 for Iocon0 {
-    const ADDRESS: u16 = 0x0E04;
+impl Register for Iocon0 {
+    type V = u8;
+    fn address(_index: u16) -> u16 {
+        0x0E04
+    }
 }
-impl Register8 for Iocon1 {
-    const ADDRESS: u16 = 0x0E04 + 1;
+impl Register for Iocon1 {
+    type V = u8;
+    fn address(_index: u16) -> u16 {
+        0x0E04 + 1
+    }
 }
-impl Register8 for Iocon2 {
-    const ADDRESS: u16 = 0x0E04 + 2;
+impl Register for Iocon2 {
+    type V = u8;
+    fn address(_index: u16) -> u16 {
+        0x0E04 + 2
+    }
 }
-impl Register8 for Iocon3 {
-    const ADDRESS: u16 = 0x0E04 + 3;
+impl Register for Iocon3 {
+    type V = u8;
+    fn address(_index: u16) -> u16 {
+        0x0E04 + 3
+    }
 }
 
 // -----------------------------------------------------------------------------
@@ -1135,19 +1216,22 @@ impl Register8 for Iocon3 {
 #[repr(u32)]
 pub struct Crc {
     #[bits = 16]
-    pub crc: u16, // bits 0..15
-    pub crcerrif: bool, // bit 16
-    pub ferrif: bool,   // bit 17
+    pub crc: u16,
+    pub crcerrif: bool,
+    pub ferrif: bool,
     #[skip]
-    __: B6,  // bits 18..23
-    pub crcerrie: bool, // bit 24
-    pub ferrie: bool,   // bit 25
+    __: B6,
+    pub crcerrie: bool,
+    pub ferrie: bool,
     #[skip]
-    __: B6,  // bits 26..31
+    __: B6,
 }
 
-impl Register32 for Crc {
-    const ADDRESS: u16 = 0x0E08;
+impl Register for Crc {
+    type V = u32;
+    fn address(_index: u16) -> u16 {
+        0x0E08
+    }
 }
 
 // -----------------------------------------------------------------------------
@@ -1156,19 +1240,22 @@ impl Register32 for Crc {
 #[bitfield(bits = 32)]
 #[repr(u32)]
 pub struct Ecccon {
-    pub ecc_en: bool, // bit 0
-    pub secie: bool,  // bit 1
-    pub dedie: bool,  // bit 2
+    pub ecc_en: bool,
+    pub secie: bool,
+    pub dedie: bool,
     #[skip]
-    __: B5, // bits 3..7
+    __: B5,
     #[bits = 7]
     pub parity: B7,
     #[skip]
-    __: B17, // bits 15..31
+    __: B17,
 }
 
-impl Register32 for Ecccon {
-    const ADDRESS: u16 = 0x0E0C;
+impl Register for Ecccon {
+    type V = u32;
+    fn address(_index: u16) -> u16 {
+        0x0E0C
+    }
 }
 
 // -----------------------------------------------------------------------------
@@ -1178,19 +1265,22 @@ impl Register32 for Ecccon {
 #[repr(u32)]
 pub struct Eccsta {
     #[skip]
-    __: B1, // bit 0 (unimplemented)
-    pub secif: bool, // bit 1
-    pub dedif: bool, // bit 2
+    __: B1,
+    pub secif: bool,
+    pub dedif: bool,
     #[skip]
-    __: B13, // bits 3..15
+    __: B13,
     #[bits = 12]
     pub error_address: B12,
     #[skip]
-    __: B4, // bits 28..31
+    __: B4,
 }
 
-impl Register32 for Eccsta {
-    const ADDRESS: u16 = 0x0E10;
+impl Register for Eccsta {
+    type V = u32;
+    fn address(_index: u16) -> u16 {
+        0x0E10
+    }
 }
 
 // -----------------------------------------------------------------------------
@@ -1204,11 +1294,14 @@ pub struct Devid {
     #[bits = 4]
     pub dev: B4,
     #[skip]
-    __: B24, // bits 8..31
+    __: B24,
 }
 
-impl Register32 for Devid {
-    const ADDRESS: u16 = 0x0E14;
+impl Register for Devid {
+    type V = u32;
+    fn address(_index: u16) -> u16 {
+        0x0E14
+    }
 }
 
 // -----------------------------------------------------------------------------
