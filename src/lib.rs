@@ -4,7 +4,11 @@
 
 mod registers;
 
-use core::{cell::RefCell, marker::PhantomData};
+use core::{
+    cell::RefCell,
+    marker::PhantomData,
+    task::{Poll, Waker},
+};
 
 use embedded_can::asynch::{CanRx, CanTx};
 use embedded_hal::spi::{Operation, SpiDevice};
@@ -63,12 +67,6 @@ pub struct McpTx<'a, SPI, F> {
     _frame: PhantomData<F>,
 }
 
-/// Receive-only handle
-pub struct McpRx<'a, SPI, F> {
-    shared: &'a SharedDriver<SPI>,
-    _frame: PhantomData<F>,
-}
-
 impl<'a, SPI, F> McpTx<'a, SPI, F> {
     /// Constructor for internal use only
     pub fn new(shared: &'a SharedDriver<SPI>) -> Self {
@@ -83,15 +81,6 @@ impl<'a, SPI, F> McpTx<'a, SPI, F> {
         SPI: SpiDevice,
     {
         self.shared.with(|drv| drv.is_message_available())
-    }
-}
-
-impl<'a, SPI, FRAME> McpRx<'a, SPI, FRAME> {
-    pub fn new(shared: &'a SharedDriver<SPI>) -> Self {
-        Self {
-            shared,
-            _frame: PhantomData,
-        }
     }
 }
 
@@ -112,6 +101,21 @@ where
     }
 }
 
+/// Receive-only handle
+pub struct McpRx<'a, SPI, F> {
+    shared: &'a SharedDriver<SPI>,
+    _frame: PhantomData<F>,
+}
+
+impl<'a, SPI, FRAME> McpRx<'a, SPI, FRAME> {
+    pub fn new(shared: &'a SharedDriver<SPI>) -> Self {
+        Self {
+            shared,
+            _frame: PhantomData,
+        }
+    }
+}
+
 impl<'a, SPI, FRAME, ERR> CanRx for McpRx<'a, SPI, FRAME>
 where
     FRAME: embedded_can::Frame,
@@ -122,7 +126,29 @@ where
     type Error = MCPError<ERR>;
 
     async fn receive(&mut self) -> Result<<Self as CanRx>::Frame, <Self as CanRx>::Error> {
-        self.shared.with(|drv| drv.receive())
+        core::future::poll_fn(|cx| {
+            self.shared
+                .with(|drv| drv.poll_receive::<FRAME>(cx.waker()))
+        })
+        .await
+    }
+}
+
+/// Handle to call when the interrupt pin is triggered.
+pub struct InterruptHandle<'a, SPI> {
+    shared: &'a SharedDriver<SPI>,
+}
+
+impl<'a, SPI> InterruptHandle<'a, SPI>
+where
+    SPI: SpiDevice,
+{
+    fn new(shared: &'a SharedDriver<SPI>) -> Self {
+        Self { shared }
+    }
+
+    pub fn handle_interrupt(&mut self) {
+        self.shared.with(|drv| drv.handle_interrupt());
     }
 }
 
@@ -148,8 +174,15 @@ impl<SPI, FRAME> Mcp2518fd<SPI, FRAME> {
     }
 
     /// Split into separate TX/RX handles that implement the embedded-can "asynch" traits
-    pub fn split(&mut self) -> (McpTx<SPI, FRAME>, McpRx<SPI, FRAME>) {
-        (McpTx::new(&self.shared), McpRx::new(&self.shared))
+    pub fn split(&mut self) -> (McpTx<SPI, FRAME>, McpRx<SPI, FRAME>, InterruptHandle<SPI>)
+    where
+        SPI: SpiDevice,
+    {
+        (
+            McpTx::new(&self.shared),
+            McpRx::new(&self.shared),
+            InterruptHandle::new(&self.shared),
+        )
     }
 }
 
@@ -162,6 +195,7 @@ fn build_header(opcode: u8, addr: u16) -> [u8; 2] {
 pub struct Driver<SPI> {
     spi: SPI,
     configured: bool,
+    rx_waker: RefCell<Option<Waker>>,
 }
 
 impl<SPI> Driver<SPI> {
@@ -169,6 +203,7 @@ impl<SPI> Driver<SPI> {
         Self {
             spi,
             configured: false,
+            rx_waker: RefCell::new(None),
         }
     }
 
@@ -427,5 +462,33 @@ where
         self.spi
             .transaction(&mut [Operation::Write(&header), Operation::Write(buffer)])
             .map_err(MCPError::SpiError)
+    }
+
+    pub fn poll_receive<FRAME>(&mut self, waker: &Waker) -> Poll<Result<FRAME, MCPError<BusErr>>>
+    where
+        FRAME: embedded_can::Frame,
+    {
+        // First, check if there's a message ready:
+        match self.is_message_available() {
+            Ok(true) => {
+                // If we have a message, read it right away.
+                let frame = self.receive()?;
+                Poll::Ready(Ok(frame))
+            }
+            Ok(false) => {
+                // No message yet, store the waker and return Pending.
+                *self.rx_waker.borrow_mut() = Some(waker.clone());
+                Poll::Pending
+            }
+            Err(e) => Poll::Ready(Err(e)),
+        }
+    }
+
+    /// Called from an ISR or elsewhere when the interrupt pin is triggered.
+    /// Wakes the stored waker (if any).
+    pub fn handle_interrupt(&mut self) {
+        if let Some(waker) = self.rx_waker.get_mut().take() {
+            waker.wake();
+        }
     }
 }
