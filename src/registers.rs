@@ -844,6 +844,17 @@ impl Register for CiTxqsta {
 // -----------------------------------------------------------------------------
 // CiFIFOCON – FIFO Control Register (Separate Rx vs Tx)
 
+#[bitfield(bits = 8)]
+#[derive(BitfieldSpecifier)]
+#[repr(u8)]
+pub struct CiFifoCon1 {
+    pub uinc: bool,
+    pub txreq: bool,
+    pub freset: bool,
+    #[skip]
+    __: B5,
+}
+
 #[bitfield(bits = 32)]
 #[repr(u32)]
 pub struct CiFifoConRx {
@@ -857,12 +868,9 @@ pub struct CiFifoConRx {
     #[skip]
     __: B1,
     pub tx_enable: bool,
-    pub uinc: bool,
+    pub cififocon1: CiFifoCon1,
     #[skip]
-    __: B1,
-    pub freset: bool,
-    #[skip]
-    __: B13,
+    __: B8,
     #[bits = 5]
     pub fifo_size: B5,
     #[bits = 3]
@@ -889,11 +897,7 @@ pub struct CiFifoConTx {
     __: B1,
     pub rtr_enable: bool,
     pub tx_enable: bool,
-    pub uinc: bool,
-    pub tx_request: bool,
-    pub freset: bool,
-    #[skip]
-    __: B5,
+    pub cififocon1: CiFifoCon1,
     #[bits = 5]
     pub tx_priority: B5,
     #[bits = 2]
@@ -910,6 +914,13 @@ impl Register for CiFifoConTx {
     type V = u32;
     fn address(index: u16) -> u16 {
         CiFifoConRx::address(index)
+    }
+}
+
+impl Register for CiFifoCon1 {
+    type V = u8;
+    fn address(index: u16) -> u16 {
+        CiFifoConTx::address(index) + 1
     }
 }
 

@@ -114,6 +114,13 @@ impl<'a, SPI, FRAME> McpRx<'a, SPI, FRAME> {
             _frame: PhantomData,
         }
     }
+
+    pub fn is_message_available(&mut self) -> Result<bool, MCPError<SPI::Error>>
+    where
+        SPI: SpiDevice,
+    {
+        self.shared.with(|drv| drv.is_message_available())
+    }
 }
 
 impl<'a, SPI, FRAME, ERR> CanRx for McpRx<'a, SPI, FRAME>
@@ -314,9 +321,9 @@ where
         self.write_ram(ram_addr, &buf)?;
 
         self.write_register_with_index(
-            registers::CiFifoConTx::new()
+            registers::CiFifoCon1::new()
                 .with_uinc(true)
-                .with_tx_request(true),
+                .with_txreq(true),
             1,
         )?;
 
@@ -350,9 +357,9 @@ where
         let data = &buf[8..8 + dlc];
         let frame = FRAME::new(id, data).unwrap();
 
-        self.write_register::<registers::CiFifoConTx>(
-            registers::CiFifoConTx::new().with_uinc(true),
-        )?; // increment FIFO pointer
+        self.write_register_with_index::<registers::CiFifoCon1>(
+            registers::CiFifoCon1::new().with_uinc(true)
+        , 0)?; // increment FIFO pointer
 
         Ok(frame)
     }
