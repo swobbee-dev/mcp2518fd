@@ -62,7 +62,7 @@ impl ToBytes for u32 {
 // -----------------------------------------------------------------------------
 // OperationMode – 3-bit enum
 
-#[derive(Clone, Copy, Debug, PartialEq, BitfieldSpecifier)]
+#[derive(Clone, Copy, Debug, PartialEq, Specifier)]
 pub enum OperationMode {
     NormalCanFd = 0,
     Sleep = 1,
@@ -84,7 +84,7 @@ impl From<OperationMode> for u8 {
 // CiCON – CAN Control Register
 
 #[bitfield(bits = 8)]
-#[derive(BitfieldSpecifier)]
+#[derive(Specifier)]
 #[repr(u8)]
 pub struct CiCon0 {
     pub d_net_filter_count: B5,
@@ -95,7 +95,7 @@ pub struct CiCon0 {
 }
 
 #[bitfield(bits = 8)]
-#[derive(BitfieldSpecifier)]
+#[derive(Specifier)]
 #[repr(u8)]
 pub struct CiCon1 {
     pub wake_up_filter_enable: bool,
@@ -108,7 +108,7 @@ pub struct CiCon1 {
 }
 
 #[bitfield(bits = 8)]
-#[derive(BitfieldSpecifier)]
+#[derive(Specifier)]
 #[repr(u8)]
 pub struct CiCon2 {
     pub restrict_re_tx_attempts: bool,
@@ -121,7 +121,7 @@ pub struct CiCon2 {
 }
 
 #[bitfield(bits = 8)]
-#[derive(BitfieldSpecifier)]
+#[derive(Specifier)]
 #[repr(u8)]
 pub struct CiCon3 {
     #[bits = 3]
@@ -262,7 +262,7 @@ impl Register for CiTdc {
 // CiTSCON – Time Stamp Configuration Register (32 bits)
 
 #[bitfield(bits = 16)]
-#[derive(BitfieldSpecifier)]
+#[derive(Specifier)]
 #[repr(u16)]
 pub struct CiTscon0 {
     #[bits = 10]
@@ -272,7 +272,7 @@ pub struct CiTscon0 {
 }
 
 #[bitfield(bits = 16)]
-#[derive(BitfieldSpecifier)]
+#[derive(Specifier)]
 #[repr(u16)]
 pub struct CiTscon1 {
     pub tbc_enable: bool,
@@ -312,7 +312,7 @@ impl Register for CiTscon1 {
 // CiVEC – Interrupt Vector Register (32 bits)
 
 #[bitfield(bits = 8)]
-#[derive(BitfieldSpecifier)]
+#[derive(Specifier)]
 #[repr(u8)]
 pub struct CiVec0 {
     #[bits = 7]
@@ -322,7 +322,7 @@ pub struct CiVec0 {
 }
 
 #[bitfield(bits = 8)]
-#[derive(BitfieldSpecifier)]
+#[derive(Specifier)]
 #[repr(u8)]
 pub struct CiVec1 {
     #[bits = 5]
@@ -332,7 +332,7 @@ pub struct CiVec1 {
 }
 
 #[bitfield(bits = 8)]
-#[derive(BitfieldSpecifier)]
+#[derive(Specifier)]
 #[repr(u8)]
 pub struct CiVec2 {
     #[bits = 7]
@@ -342,7 +342,7 @@ pub struct CiVec2 {
 }
 
 #[bitfield(bits = 8)]
-#[derive(BitfieldSpecifier)]
+#[derive(Specifier)]
 #[repr(u8)]
 pub struct CiVec3 {
     #[bits = 7]
@@ -396,7 +396,7 @@ impl Register for CiVec3 {
 // CAN_INT_FLAGS (16 bits)
 
 #[bitfield(bits = 16)]
-#[derive(BitfieldSpecifier)]
+#[derive(Specifier)]
 #[repr(u16)]
 pub struct CanIntFlags {
     pub txif: bool,
@@ -420,7 +420,7 @@ pub struct CanIntFlags {
 // CAN_INT_ENABLES (16 bits)
 
 #[bitfield(bits = 16)]
-#[derive(BitfieldSpecifier)]
+#[derive(Specifier)]
 #[repr(u16)]
 pub struct CanIntEnables {
     pub txie: bool,
@@ -477,7 +477,7 @@ impl Register for CanIntEnables {
 // CiTREC – Transmit/Receive Error Count Register (32 bits)
 
 #[bitfield(bits = 16)]
-#[derive(BitfieldSpecifier)]
+#[derive(Specifier)]
 #[repr(u16)]
 pub struct CiTrecState {
     pub error_state_warning: bool,
@@ -575,7 +575,7 @@ impl Register for CiBdiag1 {
 // CiTEFCON – Transmit Event FIFO Control Register (32 bits)
 
 #[bitfield(bits = 8)]
-#[derive(BitfieldSpecifier)]
+#[derive(Specifier)]
 #[repr(u8)]
 pub struct CiTefcon0 {
     pub tefneie: bool,
@@ -590,7 +590,7 @@ pub struct CiTefcon0 {
 }
 
 #[bitfield(bits = 8)]
-#[derive(BitfieldSpecifier)]
+#[derive(Specifier)]
 #[repr(u8)]
 pub struct CiTefcon1 {
     pub uinc: bool,
@@ -602,7 +602,7 @@ pub struct CiTefcon1 {
 }
 
 #[bitfield(bits = 8)]
-#[derive(BitfieldSpecifier)]
+#[derive(Specifier)]
 #[repr(u8)]
 pub struct CiTefcon2 {
     #[skip]
@@ -610,7 +610,7 @@ pub struct CiTefcon2 {
 }
 
 #[bitfield(bits = 8)]
-#[derive(BitfieldSpecifier)]
+#[derive(Specifier)]
 #[repr(u8)]
 pub struct CiTefcon3 {
     #[bits = 5]
@@ -667,7 +667,7 @@ impl Register for CiTefcon3 {
 // CiTEFSTA – Transmit Event FIFO Status Register (32 bits)
 
 #[bitfield(bits = 8)]
-#[derive(BitfieldSpecifier)]
+#[derive(Specifier)]
 #[repr(u8)]
 pub struct CiTefsta0 {
     pub tef_not_empty_if: bool,
@@ -704,7 +704,7 @@ impl Register for CiTefsta0 {
 // CiTXQCON – Transmit Queue Control Register (32 bits)
 
 #[bitfield(bits = 8)]
-#[derive(BitfieldSpecifier)]
+#[derive(Specifier)]
 #[repr(u8)]
 pub struct CiTxqcon0 {
     pub tx_not_full_ie: bool,
@@ -720,7 +720,7 @@ pub struct CiTxqcon0 {
 }
 
 #[bitfield(bits = 8)]
-#[derive(BitfieldSpecifier)]
+#[derive(Specifier)]
 #[repr(u8)]
 pub struct CiTxqcon1 {
     pub uinc: bool,
@@ -731,7 +731,7 @@ pub struct CiTxqcon1 {
 }
 
 #[bitfield(bits = 8)]
-#[derive(BitfieldSpecifier)]
+#[derive(Specifier)]
 #[repr(u8)]
 pub struct CiTxqcon2 {
     #[bits = 5]
@@ -743,7 +743,7 @@ pub struct CiTxqcon2 {
 }
 
 #[bitfield(bits = 8)]
-#[derive(BitfieldSpecifier)]
+#[derive(Specifier)]
 #[repr(u8)]
 pub struct CiTxqcon3 {
     #[bits = 5]
@@ -800,7 +800,7 @@ impl Register for CiTxqcon3 {
 // CiTXQSTA – Transmit Queue Status Register (32 bits)
 
 #[bitfield(bits = 8)]
-#[derive(BitfieldSpecifier)]
+#[derive(Specifier)]
 #[repr(u8)]
 pub struct CiTxqsta0 {
     pub tx_not_full_if: bool,
@@ -816,7 +816,7 @@ pub struct CiTxqsta0 {
 }
 
 #[bitfield(bits = 8)]
-#[derive(BitfieldSpecifier)]
+#[derive(Specifier)]
 #[repr(u8)]
 pub struct CiTxqsta1 {
     #[bits = 5]
@@ -845,7 +845,7 @@ impl Register for CiTxqsta {
 // CiFIFOCON – FIFO Control Register (Separate Rx vs Tx)
 
 #[bitfield(bits = 8)]
-#[derive(BitfieldSpecifier)]
+#[derive(Specifier)]
 #[repr(u8)]
 pub struct CiFifoCon1 {
     pub uinc: bool,
@@ -928,7 +928,7 @@ impl Register for CiFifoCon1 {
 // CiFIFOSTA – FIFO Status Register (Rx vs Tx both at same address range)
 
 #[bitfield(bits = 8)]
-#[derive(BitfieldSpecifier)]
+#[derive(Specifier)]
 #[repr(u8)]
 pub struct CiFifoStaRx0 {
     pub rx_not_empty_if: bool,
@@ -940,7 +940,7 @@ pub struct CiFifoStaRx0 {
 }
 
 #[bitfield(bits = 8)]
-#[derive(BitfieldSpecifier)]
+#[derive(Specifier)]
 #[repr(u8)]
 pub struct CiFifoStaRx1 {
     #[bits = 5]
@@ -980,7 +980,7 @@ impl Register for CiFifoStaRx1 {
 }
 
 #[bitfield(bits = 8)]
-#[derive(BitfieldSpecifier)]
+#[derive(Specifier)]
 #[repr(u8)]
 pub struct CiFifoStaTx0 {
     pub tx_not_full_if: bool,
@@ -995,7 +995,7 @@ pub struct CiFifoStaTx0 {
 }
 
 #[bitfield(bits = 8)]
-#[derive(BitfieldSpecifier)]
+#[derive(Specifier)]
 #[repr(u8)]
 pub struct CiFifoStaTx1 {
     #[bits = 5]
@@ -1054,7 +1054,7 @@ impl Register for CiFIFOUA {
 // CiFltcon – Filter Control Register (32 bits)
 
 #[bitfield(bits = 8)]
-#[derive(BitfieldSpecifier)]
+#[derive(Specifier)]
 #[repr(u8)]
 pub struct CiFltcon {
     #[bits = 5]
