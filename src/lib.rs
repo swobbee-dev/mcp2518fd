@@ -1,6 +1,7 @@
 //! MCP2518FD driver for Classic CAN 2.0 via SPI
 
 #![no_std]
+#![allow(clippy::new_without_default)]
 
 mod registers;
 
@@ -181,7 +182,7 @@ impl<SPI, FRAME> Mcp2518fd<SPI, FRAME> {
     }
 
     /// Split into separate TX/RX handles that implement the embedded-can "asynch" traits
-    pub fn split(&mut self) -> (McpTx<SPI, FRAME>, McpRx<SPI, FRAME>, InterruptHandle<SPI>)
+    pub fn split(&mut self) -> (McpTx<'_, SPI, FRAME>, McpRx<'_, SPI, FRAME>, InterruptHandle<'_, SPI>)
     where
         SPI: SpiDevice,
     {
@@ -455,7 +456,7 @@ where
 
     /// Read a block of RAM from the device.
     fn read_ram(&mut self, address: u16, buffer: &mut [u8]) -> Result<(), MCPError<BusErr>> {
-        assert!(buffer.len() % 4 == 0);
+        assert!(buffer.len().is_multiple_of(4));
         let header = build_header(0b0011, 0x400 + address);
         self.spi
             .transaction(&mut [Operation::Write(&header), Operation::Read(buffer)])
@@ -464,7 +465,7 @@ where
 
     /// Write a block of RAM to the device.
     fn write_ram(&mut self, address: u16, buffer: &[u8]) -> Result<(), MCPError<BusErr>> {
-        assert!(buffer.len() % 4 == 0);
+        assert!(buffer.len().is_multiple_of(4));
         let header = build_header(0b0010, 0x400 + address);
         self.spi
             .transaction(&mut [Operation::Write(&header), Operation::Write(buffer)])
