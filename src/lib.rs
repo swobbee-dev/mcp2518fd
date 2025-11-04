@@ -76,13 +76,6 @@ impl<'a, SPI, F> McpTx<'a, SPI, F> {
             _frame: PhantomData,
         }
     }
-
-    pub fn is_message_available(&mut self) -> Result<bool, MCPError<SPI::Error>>
-    where
-        SPI: SpiDevice,
-    {
-        self.shared.with(|drv| drv.is_message_available())
-    }
 }
 
 impl<'a, SPI, FRAME, ERR> CanTx for McpTx<'a, SPI, FRAME>
