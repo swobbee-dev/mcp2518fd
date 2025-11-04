@@ -182,7 +182,13 @@ impl<SPI, FRAME> Mcp2518fd<SPI, FRAME> {
     }
 
     /// Split into separate TX/RX handles that implement the embedded-can "asynch" traits
-    pub fn split(&mut self) -> (McpTx<'_, SPI, FRAME>, McpRx<'_, SPI, FRAME>, InterruptHandle<'_, SPI>)
+    pub fn split(
+        &mut self,
+    ) -> (
+        McpTx<'_, SPI, FRAME>,
+        McpRx<'_, SPI, FRAME>,
+        InterruptHandle<'_, SPI>,
+    )
     where
         SPI: SpiDevice,
     {
@@ -359,8 +365,9 @@ where
         let frame = FRAME::new(id, data).unwrap();
 
         self.write_register_with_index::<registers::CiFifoCon1>(
-            registers::CiFifoCon1::new().with_uinc(true)
-        , 0)?; // increment FIFO pointer
+            registers::CiFifoCon1::new().with_uinc(true),
+            0,
+        )?; // increment FIFO pointer
 
         Ok(frame)
     }
@@ -476,19 +483,24 @@ where
     where
         FRAME: embedded_can::Frame,
     {
-        // First, check if there's a message ready:
+        // Store the waker first
+        *self.rx_waker.borrow_mut() = Some(waker.clone());
+
         match self.is_message_available() {
             Ok(true) => {
-                // If we have a message, read it right away.
-                let frame = self.receive()?;
-                Poll::Ready(Ok(frame))
+                // Message is available. Clear the waker we just stored, then read the frame.
+                *self.rx_waker.borrow_mut() = None;
+                Poll::Ready(self.receive())
             }
             Ok(false) => {
-                // No message yet, store the waker and return Pending.
-                *self.rx_waker.borrow_mut() = Some(waker.clone());
+                // No message yet, waker is already stored.
                 Poll::Pending
             }
-            Err(e) => Poll::Ready(Err(e)),
+            Err(e) => {
+                // An SPI error occurred
+                self.rx_waker.borrow_mut().take();
+                Poll::Ready(Err(e))
+            }
         }
     }
 
