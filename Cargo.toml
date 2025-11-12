@@ -1,14 +1,15 @@
 [package]
 name = "mcp2518fd"
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
+license = "MIT OR Apache-2.0"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 embedded-can = "0.4.1"
 embedded-hal = "1.0.0"
-modular-bitfield = "0.12.0"
+modular-bitfield = "0.13.0"
 
 [patch.crates-io]
 embedded-can = { git = "https://github.com/swobbee-dev/embedded-hal.git", package = "embedded-can", branch = "feature/embedded-can-async" }
